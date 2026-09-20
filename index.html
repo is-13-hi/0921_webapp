@@ -1,1 +1,479 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>データはどうやって届く？ 回線交換とパケット交換 | 情報Ⅰ</title>
+  <meta name="description" content="回線交換とパケット交換のちがい、パケットの分割・ヘッダ・圧縮を、動かして確かめる高校「情報Ⅰ」向けの学習アプリ。">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
 
+<header class="hero">
+  <div class="wrap">
+    <div>
+      <h1>データは、どうやって<br>相手に届くの？</h1>
+      <p class="lead">インターネットでは、大きなデータを小さな「パケット」に分けて送ります。電話の「回線交換」とくらべながら、しくみを動かして確かめよう。</p>
+      <span class="unit">情報Ⅰ　ネットワークと情報システム</span>
+    </div>
+    <svg class="hero-art" viewBox="0 0 480 190" role="img" aria-label="長いデータが、ヘッダのついた5つのパケットに分かれるイラスト">
+      <rect class="hero-bar" x="20" y="16" width="440" height="36" rx="4"/>
+      <text x="34" y="40">元のデータ</text>
+      <path d="M240 60 v26 m-9 -9 l9 9 l9 -9" fill="none" stroke="#ffd84d" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+      <text x="256" y="80" style="font-family: var(--font); font-size: 13px;">分割 + ヘッダ</text>
+      <g id="hero-pkts"></g>
+      <text x="20" y="176" style="font-family: var(--font); font-size: 12px; fill:#9fb6cb;">黄色 = ヘッダ(あて先や番号が書いてある)</text>
+    </svg>
+  </div>
+</header>
+
+<nav class="tabbar" aria-label="学習メニュー">
+  <div class="wrap" role="tablist">
+    <button class="tab" role="tab" id="tab-1" data-panel="panel-1" aria-controls="panel-1" aria-selected="true">① 回線交換 と パケット交換 をくらべる</button>
+    <button class="tab" role="tab" id="tab-2" data-panel="panel-2" aria-controls="panel-2" aria-selected="false" tabindex="-1">② パケット交換を体験する</button>
+    <button class="tab" role="tab" id="tab-3" data-panel="panel-3" aria-controls="panel-3" aria-selected="false" tabindex="-1">③ 3つの通信が同時に流れる</button>
+    <button class="tab" role="tab" id="tab-4" data-panel="panel-4" aria-controls="panel-4" aria-selected="false" tabindex="-1">④ 通信品質をえらぶ</button>
+  </div>
+</nav>
+
+<main>
+
+<!-- ===================== 第1部 ===================== -->
+<section class="tabpanel" id="panel-1" role="tabpanel" aria-labelledby="tab-1">
+  <div class="wrap">
+
+    <div class="box">
+      <h2>ミッション:2組が同時に通信すると、どうなる？</h2>
+      <p><b>Aさん→Bさん</b>と<b>Cさん→Dさん</b>が、ほぼ同時にデータ(6こぶん)を送ります。まん中の<b>共用の回線(幹線)は1本だけ</b>。回線交換とパケット交換で、動きがどうちがうか見くらべましょう。</p>
+      <ul class="eyes">
+        <li>Cさんは、いつ送りはじめられる？</li>
+        <li>幹線は、むだなく使われている？</li>
+        <li>Aさんが途中で休んだら、どうなる？(下のチェックを入れてためそう)</li>
+      </ul>
+      <p class="fine" style="margin-top:10px;">※ わかりやすくするため、幹線を1本にした簡単なモデルです。実際のネットワークはもっと複雑です。</p>
+    </div>
+
+    <div class="controls">
+      <button class="btn primary" id="p1-play" type="button">▶ スタート</button>
+      <button class="btn" id="p1-step" type="button">⏭ 1コマ進める</button>
+      <button class="btn" id="p1-reset" type="button">↺ 最初から</button>
+      <label class="field">速さ
+        <select id="p1-speed">
+          <option value="1.2">ゆっくり</option>
+          <option value="2.5" selected>ふつう</option>
+          <option value="5">はやい</option>
+        </select>
+      </label>
+      <label class="check"><input type="checkbox" id="p1-pause"> Aさんが途中で通信を休む(返事を待つなど)</label>
+    </div>
+    <div class="seekbar">
+      <span>時刻</span>
+      <input type="range" id="p1-seek" min="0" max="30" step="0.05" value="0" aria-label="時刻を動かす">
+      <output id="p1-clock">0</output>
+    </div>
+
+    <div class="sims">
+      <article class="sim circuit">
+        <header>
+          <span class="mark" aria-hidden="true">☎</span>
+          <div>
+            <h3>回線交換方式</h3>
+            <p>先に「相手までの回線」を確保してから通信する(電話のしくみ)</p>
+          </div>
+        </header>
+        <div class="sim-body">
+          <div class="net" id="net-circuit"></div>
+          <p class="legend"><span class="dotkey a"></span>Aさん <span class="dotkey c"></span>Cさん / 色のついた線 = その人が<b>占有</b>している回線</p>
+          <div class="gantt" id="gantt-circuit"></div>
+          <ul class="log" id="log-circuit"></ul>
+        </div>
+      </article>
+
+      <article class="sim packet">
+        <header>
+          <span class="mark" aria-hidden="true">✉</span>
+          <div>
+            <h3>パケット交換方式</h3>
+            <p>データを小さく分けて、1つずつ送る(インターネットのしくみ)</p>
+          </div>
+        </header>
+        <div class="sim-body">
+          <div class="net" id="net-packet"></div>
+          <p class="legend"><span class="dotkey a"></span>Aさんのパケット <span class="dotkey c"></span>Cさんのパケット / 数字は「何番目のパケットか」</p>
+          <div class="gantt" id="gantt-packet"></div>
+          <ul class="log" id="log-packet"></ul>
+        </div>
+      </article>
+    </div>
+
+    <div class="box">
+      <h3>結果をくらべる</h3>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr><th></th><th class="c-circuit">回線交換</th><th class="c-packet">パケット交換</th></tr>
+          </thead>
+          <tbody>
+            <tr><th>Aさんの通信が終わった時刻</th><td class="num" id="r-endA-c">…</td><td class="num" id="r-endA-p">…</td></tr>
+            <tr><th>Cさんの最初のデータが届いた時刻</th><td class="num" id="r-firstC-c">…</td><td class="num" id="r-firstC-p">…</td></tr>
+            <tr><th>Cさんの通信が終わった時刻</th><td class="num" id="r-endC-c">…</td><td class="num" id="r-endC-p">…</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="takeaway" id="p1-takeaway" hidden></p>
+    </div>
+
+    <div class="box">
+      <h3>ちがいをまとめよう</h3>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr><th></th><th class="c-circuit">回線交換方式</th><th class="c-packet">パケット交換方式</th></tr>
+          </thead>
+          <tbody>
+            <tr><th>通信のはじめ</th><td>相手までの回線を先に確保する(接続)</td><td>接続の準備なしで、すぐ送りはじめられる</td></tr>
+            <tr><th>回線の使い方</th><td>通信している2人が回線を<b>独占</b>する</td><td>たくさんの人が同じ回線を<b>共用</b>する</td></tr>
+            <tr><th>データの送り方</th><td>とぎれずに、ひと続きで流す</td><td>パケットに分けて、1つずつ送る</td></tr>
+            <tr><th>通信していない間</th><td>回線は空いているのに、ほかの人は使えない(むだ)</td><td>空きは、ほかの人の通信が使える</td></tr>
+            <tr><th>混んだとき</th><td>回線がふさがると「話中」でつながらない</td><td>つながるが、順番待ちで届くのが遅くなる</td></tr>
+            <tr><th>例</th><td>従来の固定電話</td><td>インターネット</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="box think">
+      <h3>考えてみよう</h3>
+      <details>
+        <summary>Q1. 回線交換で、Aさんが休んでいる間も回線が「むだ」になるのはなぜ？</summary>
+        <p>回線はAさんとBさんのために予約されていて、通信が終わって開放されるまで、ほかの人は使えないからです。</p>
+      </details>
+      <details>
+        <summary>Q2. パケット交換では、なぜCさんは待たずに通信できたの？</summary>
+        <p>データが小さなパケットに分かれていて、幹線をパケット1つぶんずつ交代で使えるからです。Aさんが休んでいる間の空きも、Cさんが使えます。</p>
+      </details>
+      <details>
+        <summary>Q3. パケット交換にも困る点はある？</summary>
+        <p>混雑すると順番待ちが長くなり、届くのが遅れます。また、パケットを元の順にならべ直す仕組みが必要です(第2部で体験します)。</p>
+      </details>
+    </div>
+
+  </div>
+</section>
+
+<!-- ===================== 第2部 ===================== -->
+<section class="tabpanel" id="panel-2" role="tabpanel" aria-labelledby="tab-2" hidden>
+  <div class="wrap">
+
+    <div class="box">
+      <h2>送るデータを えらぼう</h2>
+      <div class="setting-grid">
+        <fieldset class="seg" id="p2-size">
+          <legend>データの大きさ</legend>
+          <div class="opts">
+            <label><input type="radio" name="p2size" value="small" checked><span class="seg-btn"><b>小</b><small>📝 テキスト<br>4,000バイト</small></span></label>
+            <label><input type="radio" name="p2size" value="medium"><span class="seg-btn"><b>中</b><small>🖼️ 画像<br>12,000バイト</small></span></label>
+            <label><input type="radio" name="p2size" value="large"><span class="seg-btn"><b>大</b><small>🎞️ 動画<br>36,000バイト</small></span></label>
+          </div>
+        </fieldset>
+        <div class="toggles">
+          <label class="switch"><input type="checkbox" id="p2-compress"><span>データを圧縮して送る<small>バイト数を減らしてから分割します</small></span></label>
+          <label class="switch"><input type="checkbox" id="p2-loss"><span>途中でパケットが消える<small>ネットワークの混雑や故障を再現します</small></span></label>
+        </div>
+      </div>
+      <p class="fine" style="margin-top:12px;">※ 学習用に、実際よりずっと小さなデータにしています。ふつうの写真や動画は、数百万バイト以上あります。設定を変えたら、下のステップを最初から見なおせます。</p>
+    </div>
+
+    <ol class="stepper" id="p2-stepper" aria-label="ステップ"></ol>
+
+    <div class="box" id="p2-stage">
+      <div class="stage-head">
+        <span class="no" id="p2-no">1</span>
+        <h3 id="p2-title"></h3>
+      </div>
+      <p class="stage-lead" id="p2-lead"></p>
+      <div class="stage-body" id="p2-body"></div>
+      <p class="stage-point" id="p2-point"></p>
+      <div class="stage-nav">
+        <button class="btn" id="p2-prev" type="button">◀ 前へ</button>
+        <button class="btn primary" id="p2-next" type="button">次へ ▶</button>
+      </div>
+    </div>
+
+    <div class="box">
+      <h3>圧縮する・しないで、どう変わる？</h3>
+      <div class="tbl-wrap"><table class="tbl" id="p2-summary"></table></div>
+      <p class="fine" style="margin-top:10px;">圧縮すると、パケットの数もヘッダの合計も減ります。ただし、送る側で圧縮し、受け取る側で展開する手間はかかります。JPEG や MP3 のように、すでに圧縮されたデータは、もう一度圧縮してもあまり小さくなりません。</p>
+    </div>
+
+    <div class="box think">
+      <h3>考えてみよう</h3>
+      <details>
+        <summary>Q1. なぜ、データを小さなパケットに分けて送るの？</summary>
+        <p>大きなデータが回線を独占せず、たくさんの人が回線を共用できるからです。また、途中でなくなっても、そのパケットだけ送りなおせば済みます。</p>
+      </details>
+      <details>
+        <summary>Q2. パケットが届く順番がバラバラでも、元のデータに戻せるのはなぜ？</summary>
+        <p>ヘッダに「何番目のパケットか」を書いてあるので、受信側が番号順にならべ直せるからです。</p>
+      </details>
+      <details>
+        <summary>Q3. ヘッダをつけると、何かこまることはある？</summary>
+        <p>ヘッダの分だけ、ネットワークに流れるデータが増えます。パケットの数が多いほど、ヘッダの合計も大きくなります。</p>
+      </details>
+      <details>
+        <summary>Q4. 圧縮すると、どんなよいことがある？</summary>
+        <p>送るバイト数が減るので、パケットの数も減り、早く届きやすくなります。</p>
+      </details>
+    </div>
+
+    <div class="box vocab">
+      <h3>ことば カード</h3>
+      <dl>
+        <dt>パケット</dt><dd>データを小さく分けたもの。「ヘッダ」と「データ部分」でできている</dd>
+        <dt>ヘッダ</dt><dd>パケットの先頭につける情報。宛先・送信元のIPアドレス、パケット番号など</dd>
+        <dt>ルータ</dt><dd>ヘッダの宛先IPアドレスを見て、パケットを次に送る先を決める機器</dd>
+        <dt>ルーティング</dt><dd>パケットを目的地まで届けるために、通る経路を選ぶこと</dd>
+        <dt>TTL</dt><dd>パケットの寿命。ルータを通るたびに1減り、0になると捨てられる</dd>
+        <dt>圧縮・展開</dt><dd>データのバイト数を減らすことを圧縮、元にもどすことを展開(解凍)という</dd>
+      </dl>
+    </div>
+
+  </div>
+</section>
+
+
+<!-- ===================== 第3部 ===================== -->
+<section class="tabpanel" id="panel-3" role="tabpanel" aria-labelledby="tab-3" hidden>
+  <div class="wrap">
+
+    <div class="box">
+      <h2>ミッション:3組が同時に通信すると、ネットワークはどうなる？</h2>
+      <p>3つの<b>送信元(①②③)</b>が、それぞれ別の<b>宛先(①②③)</b>へデータを送ります。パケットは、同じルータや回線をみんなで分けあって進みます。左は<b>圧縮しない</b>、右は<b>圧縮する</b>。同じデータを同時に送って、くらべましょう。</p>
+      <ul class="eyes">
+        <li>ルータの前で「順番待ち」ができるのは、どんなとき？</li>
+        <li>パケットは、どの経路を通っている？(ルータは、すいている経路を選びます)</li>
+        <li>圧縮すると、パケットの数や、全部届くまでの時間はどう変わる？</li>
+      </ul>
+    </div>
+
+    <div class="box">
+      <h3>送るデータをえらぼう</h3>
+      <div class="sender-grid">
+        <label class="sender"><span class="num" style="background:#1d6fe0">1</span><span>送信元①のデータ<select id="p3-size1" aria-label="送信元1のデータの大きさ"><option value="small" selected>小:テキスト</option><option value="medium">中:画像</option><option value="large">大:動画</option></select></span></label>
+        <label class="sender"><span class="num" style="background:#ee6a1f">2</span><span>送信元②のデータ<select id="p3-size2" aria-label="送信元2のデータの大きさ"><option value="small">小:テキスト</option><option value="medium" selected>中:画像</option><option value="large">大:動画</option></select></span></label>
+        <label class="sender"><span class="num" style="background:#c2255c">3</span><span>送信元③のデータ<select id="p3-size3" aria-label="送信元3のデータの大きさ"><option value="small">小:テキスト</option><option value="medium">中:画像</option><option value="large" selected>大:動画</option></select></span></label>
+      </div>
+      <p class="fine" id="p3-plan" style="margin-top:10px;"></p>
+    </div>
+
+    <div class="controls">
+      <button class="btn primary" id="p3-play" type="button">▶ スタート</button>
+      <button class="btn" id="p3-step" type="button">⏭ 少し進める</button>
+      <button class="btn" id="p3-reset" type="button">↺ 最初から</button>
+      <label class="field">速さ
+        <select id="p3-speed">
+          <option value="0.6">ゆっくり</option>
+          <option value="1" selected>ふつう</option>
+          <option value="2">はやい</option>
+        </select>
+      </label>
+    </div>
+    <div class="seekbar">
+      <span>時間</span>
+      <input type="range" id="p3-seek" min="0" max="12" step="0.02" value="0" aria-label="時間を動かす">
+      <output id="p3-clock">0.0 秒</output>
+    </div>
+
+    <div class="sims">
+      <article class="sim circuit">
+        <header>
+          <span class="mark" aria-hidden="true">📦</span>
+          <div>
+            <h3>圧縮しない</h3>
+            <p>元のデータを、そのまま分割して送る</p>
+          </div>
+        </header>
+        <div class="sim-body">
+          <div class="net" id="net3-off"></div>
+          <p class="legend">丸=送信元 / 四角=宛先 / 色つきの四角=パケット(数字は番号)</p>
+          <p class="status" id="status3-off"></p>
+          <ul class="log" id="log3-off"></ul>
+        </div>
+      </article>
+      <article class="sim packet">
+        <header>
+          <span class="mark" aria-hidden="true">🗜️</span>
+          <div>
+            <h3>圧縮する</h3>
+            <p>圧縮してバイト数を減らしてから、分割して送る</p>
+          </div>
+        </header>
+        <div class="sim-body">
+          <div class="net" id="net3-on"></div>
+          <p class="legend">丸=送信元 / 四角=宛先 / 色つきの四角=パケット(数字は番号)</p>
+          <p class="status" id="status3-on"></p>
+          <ul class="log" id="log3-on"></ul>
+        </div>
+      </article>
+    </div>
+
+    <div class="box">
+      <h3>結果をくらべる</h3>
+      <div class="tbl-wrap"><table class="tbl" id="p3-result"></table></div>
+      <p class="takeaway" id="p3-takeaway" hidden></p>
+      <p class="fine" style="margin-top:10px;">※ ルータや回線の速さは、わかりやすくするための設定です。実際には、圧縮する側と展開する側の処理にも時間がかかります(この画面では考えていません)。</p>
+    </div>
+
+    <div class="box think">
+      <h3>考えてみよう</h3>
+      <details>
+        <summary>Q1. 3つの通信は、おたがいにじゃまをしていた？</summary>
+        <p>回線や、ルータの出口は共用なので、同時にたくさん送ると「順番待ち」ができます。その分、届くのがおそくなります。それでも、ほかの通信を完全に止めることはありません。</p>
+      </details>
+      <details>
+        <summary>Q2. 同じデータのパケットが、別々の経路を通っても大丈夫なのはなぜ？</summary>
+        <p>どのパケットにも、宛先のIPアドレスとパケット番号が書いてあるからです。ルータは宛先を見て運び、宛先のコンピュータが番号順にならべ直します。</p>
+      </details>
+      <details>
+        <summary>Q3. 圧縮すると、自分以外の人にもよいことがある？</summary>
+        <p>ネットワークに流れる量が減るので、ルータの順番待ちが短くなります。まわりの人の通信も、届きやすくなります。</p>
+      </details>
+    </div>
+
+  </div>
+</section>
+
+<!-- ===================== 第4部 ===================== -->
+<section class="tabpanel" id="panel-4" role="tabpanel" aria-labelledby="tab-4" hidden>
+  <div class="wrap">
+
+    <div class="box">
+      <h2>ミッション:相手と目的に合わせて、送り方をえらぼう</h2>
+      <p>同じデータでも、<b>有線LAN</b>で送るか<b>無線LAN(Wi-Fi)</b>で送るか、<b>圧縮する</b>かしないかで、届くまでの時間・遅れ・画質がかわります。「早く軽く送る(<b>効率</b>)」ことと「きれいに確実に届ける(<b>品質</b>)」は、どちらかをよくすると、どちらかが下がることもあります。目的にあった、ちょうどよいバランスをさがしましょう。</p>
+    </div>
+
+    <div class="box">
+      <h3>① 相手と目的をえらぶ</h3>
+      <div class="scen-grid" id="p4-scen"></div>
+      <p class="prio" id="p4-prio"></p>
+    </div>
+
+    <div class="box">
+      <h3>② 条件と、あなたの選択</h3>
+      <div class="cond-grid">
+        <div class="cond">
+          <label for="p4-size" class="cond-title">元のデータの大きさ <output id="p4-size-out" class="mono"></output></label>
+          <input type="range" id="p4-size" min="0" max="100" step="1" aria-describedby="p4-size-note">
+          <p class="fine" id="p4-size-note"></p>
+        </div>
+        <fieldset class="seg" id="p4-env">
+          <legend>無線LANの電波の状態</legend>
+          <div class="opts">
+            <label><input type="radio" name="p4env" value="good"><span class="seg-btn"><b>良好</b><small>ルータの近く<br>使う人が少ない</small></span></label>
+            <label><input type="radio" name="p4env" value="normal" checked><span class="seg-btn"><b>ふつう</b><small>少し離れている</small></span></label>
+            <label><input type="radio" name="p4env" value="bad"><span class="seg-btn"><b>悪い</b><small>遠い・かべ<br>使う人が多い</small></span></label>
+          </div>
+        </fieldset>
+        <fieldset class="seg" id="p4-media">
+          <legend>あなたの選択: 回線</legend>
+          <div class="opts n2">
+            <label><input type="radio" name="p4media" value="wired"><span class="seg-btn"><b>🔌 有線LAN</b><small>ケーブルでつなぐ</small></span></label>
+            <label><input type="radio" name="p4media" value="wifi" checked><span class="seg-btn"><b>📶 無線LAN</b><small>電波でつなぐ</small></span></label>
+          </div>
+        </fieldset>
+        <fieldset class="seg" id="p4-mode">
+          <legend>あなたの選択: 圧縮</legend>
+          <div class="opts">
+            <label><input type="radio" name="p4mode" value="none" checked><span class="seg-btn"><b>しない</b><small>そのまま送る</small></span></label>
+            <label><input type="radio" name="p4mode" value="lossless"><span class="seg-btn"><b>可逆圧縮</b><small>元にもどせる<br>(ZIPなど)</small></span></label>
+            <label><input type="radio" name="p4mode" value="lossy" id="p4-lossy"><span class="seg-btn"><b>強く圧縮</b><small>非可逆<br>(画質が下がる)</small></span></label>
+          </div>
+        </fieldset>
+      </div>
+      <p class="fine" id="p4-lossy-note" style="margin-top:8px;"></p>
+    </div>
+
+    <div class="box">
+      <h3>③ 転送レース:同じデータを、6通りの方法で同時に送る</h3>
+      <div class="controls">
+        <button class="btn primary" id="p4-run" type="button">▶ スタート</button>
+        <button class="btn" id="p4-reset" type="button">↺ 最初から</button>
+        <span class="fine">レースは短く見せています。実際にかかる時間は、右がわに出ます。</span>
+      </div>
+      <div class="lanes" id="p4-race"></div>
+    </div>
+
+    <div class="box">
+      <h3>④ ファイルの大きさと、通信の負荷</h3>
+      <p class="lead2">圧縮すると、送るデータは小さくなります。でも、パケットのヘッダや、電波の悪さで起きる<b>再送</b>の分も、回線には流れます。回線に流れる量が「通信の負荷」です。</p>
+      <p class="legend"><span class="dotkey" style="background:#5b7590"></span>データ本体 <span class="dotkey" style="background:#f2c230"></span>ヘッダ(40バイト×パケット数) <span class="dotkey" style="background:#d92d20"></span>再送(届かなくて、やり直した分)</p>
+      <div class="loadbars" id="p4-load"></div>
+      <p class="takeaway" id="p4-load-sum"></p>
+    </div>
+
+    <div class="box">
+      <h3>⑤ くらべて、えらぶ</h3>
+      <div class="tbl-wrap"><table class="tbl compact" id="p4-table"></table></div>
+      <div class="balance">
+        <div>
+          <h4 class="mini-h">品質と効率のバランス図</h4>
+          <svg id="p4-chart" viewBox="0 0 440 350" role="img" aria-label="効率と品質の散布図"></svg>
+          <p class="fine">右上にいくほど「早く・軽く・手軽で、しかもきれいに確実」。丸の中の文字は、上の表の記号です。効率には「手軽さ」もふくみます。</p>
+        </div>
+        <div>
+          <h4 class="mini-h">あなたの選択の点数</h4>
+          <div id="p4-verdict"></div>
+          <button class="btn primary" id="p4-reveal" type="button" style="margin-top:12px;">答え合わせ:いちばんバランスのよい組み合わせは？</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="box">
+      <h3>ことばの整理</h3>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <tbody>
+            <tr><th>遅延(ちえん)</th><td>データを送ってから届くまでの、おくれ。オンライン対戦やビデオ通話で大切</td></tr>
+            <tr><th>ゆらぎ</th><td>おくれが、そのたびに変わること。大きいと、映像や音がとぎれる</td></tr>
+            <tr><th>パケット損失と再送</th><td>パケットが届かないこと。届かなかった分は、送りなおす(再送)。無線は起きやすい</td></tr>
+            <tr><th>可逆圧縮</th><td>元にもどせる圧縮(ZIPなど)。文書や、まちがいが許されないデータに使う</td></tr>
+            <tr><th>非可逆圧縮</th><td>元には完全にもどせない圧縮(JPEG、動画など)。小さくなるが、画質や音質が下がる</td></tr>
+            <tr><th>通信負荷</th><td>回線に流れるデータの量。多いと、ほかの通信のじゃまになる</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="box think">
+      <h3>考えてみよう</h3>
+      <details>
+        <summary>Q1. 有線LANと無線LANは、どんなときに使い分ける？</summary>
+        <p>遅れやゆらぎが少なく安定している有線LANは、オンライン対戦やテレワークなどに向いています。無線LANはケーブルがいらず、動きながら使えるので便利ですが、電波の状態しだいで速さや安定が変わります。</p>
+      </details>
+      <details>
+        <summary>Q2. 強く圧縮すれば、いつでもいちばん良い？</summary>
+        <p>いいえ。小さくなって早く届きますが、画質・音質が下がり、元にもどせません。文書のように1文字もまちがえられないデータには使えません。</p>
+      </details>
+      <details>
+        <summary>Q3. 電波の状態が悪いとき、圧縮すると何がよくなる？</summary>
+        <p>流れるデータが減るので、電波が悪くても早く届きやすくなり、再送が増えても影響が小さくなります。ただし、画質は下がります。</p>
+      </details>
+      <details>
+        <summary>Q4. 「品質」と「効率」のバランスは、どうやって決める？</summary>
+        <p>相手や目的で決まります。友だちに気軽に送る写真なら効率を、大事な提出物なら正確さを、ビデオ通話なら遅れの小ささを優先します。何を大事にするかを先に決めて、方法を選びます。</p>
+      </details>
+    </div>
+
+  </div>
+</section>
+
+</main>
+
+<footer class="foot">
+  <div class="wrap">情報Ⅰ「ネットワークと情報システム」学習アプリ ／ IPアドレスは学習用に予約されている番号、通信速度などの数値は学習用の目安です。</div>
+</footer>
+
+<noscript><p style="padding:16px;text-align:center;">このアプリは JavaScript を使います。ブラウザの設定で JavaScript を有効にしてください。</p></noscript>
+<script src="script.js"></script>
+</body>
+</html>
